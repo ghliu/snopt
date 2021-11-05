@@ -1,0 +1,22 @@
+name: snopt
+channels:
+  - anaconda
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy
+  - scipy
+  - termcolor
+  - easydict
+  - ipdb
+  - pytorch==1.8.1
+  - torchvision==0.9.1
+  - scikit-learn
+  - pandas
+  - pip
+  - pip:
+    - prefetch_generator
+    - colored-traceback
+    - h5py
+    - sktime==0.4.0
