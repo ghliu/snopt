@@ -5,7 +5,7 @@ from .misc import _handle_unused_kwargs
 
 
 class AdaptiveStepsizeODESolver(metaclass=abc.ABCMeta):
-    def __init__(self, dtype, y0, norm, **unused_kwargs):
+    def __init__(self, dtype, y0, norm, snopt_collector=None, **unused_kwargs):
         _handle_unused_kwargs(self, unused_kwargs)
         del unused_kwargs
 
@@ -13,6 +13,7 @@ class AdaptiveStepsizeODESolver(metaclass=abc.ABCMeta):
         self.dtype = dtype
 
         self.norm = norm
+        self.snopt_collector = snopt_collector
 
     def _before_integrate(self, t):
         pass
@@ -28,6 +29,8 @@ class AdaptiveStepsizeODESolver(metaclass=abc.ABCMeta):
         self._before_integrate(t)
         for i in range(1, len(t)):
             solution[i] = self._advance(t[i])
+            if self.snopt_collector:
+                self.snopt_collector.call_invoke(self.func, t[i], solution[i])
         return solution
 
 
@@ -48,7 +51,7 @@ class AdaptiveStepsizeEventODESolver(AdaptiveStepsizeODESolver, metaclass=abc.AB
 class FixedGridODESolver(metaclass=abc.ABCMeta):
     order: int
 
-    def __init__(self, func, y0, step_size=None, grid_constructor=None, interp="linear", perturb=False, **unused_kwargs):
+    def __init__(self, func, y0, step_size=None, grid_constructor=None, interp="linear", perturb=False, snopt_collector=None, **unused_kwargs):
         self.atol = unused_kwargs.pop('atol')
         unused_kwargs.pop('rtol', None)
         unused_kwargs.pop('norm', None)
@@ -62,6 +65,7 @@ class FixedGridODESolver(metaclass=abc.ABCMeta):
         self.step_size = step_size
         self.interp = interp
         self.perturb = perturb
+        self.snopt_collector = snopt_collector
 
         if step_size is None:
             if grid_constructor is None:
@@ -113,6 +117,8 @@ class FixedGridODESolver(metaclass=abc.ABCMeta):
                     solution[j] = self._cubic_hermite_interp(t0, y0, f0, t1, y1, f1, t[j])
                 else:
                     raise ValueError(f"Unknown interpolation method {self.interp}")
+                if self.snopt_collector:
+                    self.snopt_collector.call_invoke(self.func, t[j], solution[j])
                 j += 1
             y0 = y1
 

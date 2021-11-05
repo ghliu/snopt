@@ -5,6 +5,8 @@ from .odeint import SOLVERS, odeint
 from .misc import _check_inputs, _flat_to_shape
 from .misc import _mixed_norm
 
+from snopt import SNOptAdjointCollector
+
 
 class OdeintAdjointMethod(torch.autograd.Function):
 
@@ -109,6 +111,8 @@ class OdeintAdjointMethod(torch.autograd.Function):
             #       Solve adjoint ODE        #
             ##################################
 
+            snopt_collector = SNOptAdjointCollector(func) if adjoint_options['use_snopt'] else None
+
             if t_requires_grad:
                 time_vjps = torch.empty(len(t), dtype=t.dtype, device=t.device)
             else:
@@ -123,9 +127,14 @@ class OdeintAdjointMethod(torch.autograd.Function):
                     time_vjps[i] = dLd_cur_t
 
                 # Run the augmented system backwards in time.
+                samp_t = t[i - 1:i + 1].flip(0)
+
+                if snopt_collector:
+                    adjoint_options, samp_t = snopt_collector.check_inputs(adjoint_options, samp_t)
+
                 aug_state = odeint(
                     augmented_dynamics, tuple(aug_state),
-                    t[i - 1:i + 1].flip(0),
+                    samp_t,
                     rtol=adjoint_rtol, atol=adjoint_atol, method=adjoint_method, options=adjoint_options
                 )
                 aug_state = [a[1] for a in aug_state]  # extract just the t[i - 1] value
